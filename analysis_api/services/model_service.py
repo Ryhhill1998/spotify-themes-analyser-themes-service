@@ -48,7 +48,10 @@ class ModelService:
 
     @staticmethod
     def _generate_contents(prompt: str) -> list[types.Content]:
-        return [types.Content(role="user", parts=[prompt])]
+        prompt_content = types.Part.from_text(text=prompt)
+        contents = [types.Content(role="user", parts=[prompt_content])]
+
+        return contents
 
     def generate_response(self, data: str):
         prompt = f"{self.prompt_template}\n{data}"
