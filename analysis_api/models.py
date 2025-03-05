@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class AnalysisRequest(BaseModel):
-    id: str
+    track_id: str
     lyrics: str
 
 

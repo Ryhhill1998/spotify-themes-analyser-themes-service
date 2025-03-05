@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
 from typing import Annotated
 
+import redis.asyncio as redis
 from fastapi import FastAPI, Depends
 
 from analysis_api.dependencies import get_data_service
-from analysis_api.models import AnalysisRequest, EmotionalProfile, AnalysisResponse
+from analysis_api.models import AnalysisRequest, AnalysisResponse
 from analysis_api.services.data_service import DataService
 from analysis_api.services.model_service import ModelService
 from analysis_api.services.storage_service import StorageService
@@ -28,9 +29,14 @@ async def lifespan(app: FastAPI):
         max_output_tokens=settings.model_max_output_tokens
     )
 
-    app.state.storage_service = StorageService()
+    redis_client = redis.Redis(host=settings.redis_host, port=settings.redis_port, decode_responses=True)
 
-    yield
+    try:
+        app.state.storage_service = StorageService(redis_client)
+
+        yield
+    finally:
+        await redis_client.aclose()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -41,6 +47,8 @@ async def get_emotional_profile(
         analysis_requests: list[AnalysisRequest],
         data_service: Annotated[DataService, Depends(get_data_service)]
 ) -> list[AnalysisResponse]:
-    analysis_response_list = await data_service.get_analysis_response_list(analysis_requests)
-
-    return analysis_response_list
+    try:
+        analysis_response_list = await data_service.get_emotional_analysis_list(analysis_requests)
+        return analysis_response_list
+    except Exception as e:
+        print(e)

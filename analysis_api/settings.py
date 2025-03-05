@@ -13,4 +13,7 @@ class Settings(BaseSettings):
     model_max_output_tokens: int
     model_prompt_path: Path
 
+    redis_host: str
+    redis_port: int
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")

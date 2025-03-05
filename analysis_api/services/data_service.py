@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 from analysis_api.models import AnalysisRequest, EmotionalProfile, AnalysisResponse
 from analysis_api.services.model_service import ModelService
@@ -10,22 +11,28 @@ class DataService:
         self.model_service = model_service
         self.storage_service = storage_service
 
-    async def _get_emotional_profile(self, lyrics: str) -> EmotionalProfile:
-        data = await asyncio.to_thread(self.model_service.generate_response, lyrics)
+    async def _get_emotional_profile(self, track_id: str, lyrics: str) -> EmotionalProfile:
+        item = await self.storage_service.retrieve_item(track_id)
+
+        if item is not None:
+            data = json.loads(item)
+        else:
+            data = await asyncio.to_thread(self.model_service.generate_response, lyrics)
+            await self.storage_service.store_item(key=track_id, value=json.dumps(data))
 
         emotional_profile = EmotionalProfile(**data)
 
         return emotional_profile
 
-    async def _get_analysis_response(self, analysis_request: AnalysisRequest) -> AnalysisResponse:
-        emotional_profile = await self._get_emotional_profile(analysis_request.lyrics)
+    async def _get_emotional_analysis(self, track_id: str, lyrics: str) -> AnalysisResponse:
+        emotional_profile = await self._get_emotional_profile(track_id=track_id, lyrics=lyrics)
 
-        analysis_response = AnalysisResponse(**analysis_request.dict(), emotional_profile=emotional_profile)
+        analysis_response = AnalysisResponse(track_id=track_id, lyrics=lyrics, emotional_profile=emotional_profile)
 
         return analysis_response
 
-    async def get_analysis_response_list(self, analysis_requests: list[AnalysisRequest]) -> list[AnalysisResponse]:
-        tasks = [self._get_analysis_response(req) for req in analysis_requests]
+    async def get_emotional_analysis_list(self, analysis_requests: list[AnalysisRequest]) -> list[AnalysisResponse]:
+        tasks = [self._get_emotional_analysis(track_id=req.track_id, lyrics=req.lyrics) for req in analysis_requests]
 
         analysis_response_list = await asyncio.gather(*tasks, return_exceptions=True)
 
