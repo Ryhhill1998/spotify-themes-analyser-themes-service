@@ -1,4 +1,7 @@
-from analysis_api.models import AnalysisRequest, EmotionalProfile
+import asyncio
+import threading
+
+from analysis_api.models import AnalysisRequest, EmotionalProfile, AnalysisResponse
 from analysis_api.services.model_service import ModelService
 from analysis_api.services.storage_service import StorageService
 
@@ -8,31 +11,31 @@ class DataService:
         self.model_service = model_service
         self.storage_service = storage_service
 
-    def get_emotional_profile(self, analysis_requests: list[AnalysisRequest]) -> EmotionalProfile:
-        emotional_profiles = []
+    async def _get_emotional_profile(self, lyrics: str) -> EmotionalProfile:
+        data = await asyncio.to_thread(self.model_service.generate_response, lyrics)
 
-        for req in analysis_requests:
-            data = self.model_service.generate_response(req.lyrics)
-            emotional_profile = EmotionalProfile(**data)
-            emotional_profiles.append(emotional_profile)
+        emotional_profile = EmotionalProfile(**data)
 
-        num_emotional_profiles = len(emotional_profiles)
-        average_data = {
-            "joy": sum(p.joy for p in emotional_profiles) / num_emotional_profiles,
-            "sadness": sum(p.sadness for p in emotional_profiles) / num_emotional_profiles,
-            "anger": sum(p.anger for p in emotional_profiles) / num_emotional_profiles,
-            "fear": sum(p.fear for p in emotional_profiles) / num_emotional_profiles,
-            "love": sum(p.love for p in emotional_profiles) / num_emotional_profiles,
-            "hope": sum(p.hope for p in emotional_profiles) / num_emotional_profiles,
-            "nostalgia": sum(p.nostalgia for p in emotional_profiles) / num_emotional_profiles,
-            "loneliness": sum(p.loneliness for p in emotional_profiles) / num_emotional_profiles,
-            "confidence": sum(p.confidence for p in emotional_profiles) / num_emotional_profiles,
-            "despair": sum(p.despair for p in emotional_profiles) / num_emotional_profiles,
-            "excitement": sum(p.excitement for p in emotional_profiles) / num_emotional_profiles,
-            "mystery": sum(p.mystery for p in emotional_profiles) / num_emotional_profiles,
-            "defiance": sum(p.defiance for p in emotional_profiles) / num_emotional_profiles,
-            "gratitude": sum(p.gratitude for p in emotional_profiles) / num_emotional_profiles,
-            "spirituality": sum(p.spirituality for p in emotional_profiles) / num_emotional_profiles,
-        }
+        return emotional_profile
 
-        return EmotionalProfile(**average_data)
+    async def _get_analysis_response(self, analysis_request: AnalysisRequest) -> AnalysisResponse:
+        emotional_profile = await self._get_emotional_profile(analysis_request.lyrics)
+
+        analysis_response = AnalysisResponse(**analysis_request.dict(), emotional_profile=emotional_profile)
+
+        return analysis_response
+
+    async def get_analysis_response_list(self, analysis_requests: list[AnalysisRequest]) -> list[AnalysisResponse]:
+        tasks = [self._get_analysis_response(req) for req in analysis_requests]
+
+        analysis_response_list = await asyncio.gather(*tasks, return_exceptions=True)
+
+        successful_results = [item for item in analysis_response_list if not isinstance(item, Exception)]
+        failed_count = len(analysis_response_list) - len(successful_results)
+        print(f"Success: {len(successful_results)}")
+
+        # Ensure at least 50% success rate
+        if len(successful_results) >= len(analysis_response_list) // 2:
+            return successful_results
+        else:
+            raise RuntimeError(f"Too many failures! Only {len(successful_results)} succeeded, {failed_count} failed.")

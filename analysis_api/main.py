@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import FastAPI, Depends
 
 from analysis_api.dependencies import get_data_service
-from analysis_api.models import AnalysisRequest, EmotionalProfile
+from analysis_api.models import AnalysisRequest, EmotionalProfile, AnalysisResponse
 from analysis_api.services.data_service import DataService
 from analysis_api.services.model_service import ModelService
 from analysis_api.services.storage_service import StorageService
@@ -37,10 +37,10 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.post("/emotional-profile")
-def get_emotional_profile(
+async def get_emotional_profile(
         analysis_requests: list[AnalysisRequest],
         data_service: Annotated[DataService, Depends(get_data_service)]
-) -> EmotionalProfile:
-    emotional_profile = data_service.get_emotional_profile(analysis_requests)
+) -> list[AnalysisResponse]:
+    analysis_response_list = await data_service.get_analysis_response_list(analysis_requests)
 
-    return emotional_profile
+    return analysis_response_list

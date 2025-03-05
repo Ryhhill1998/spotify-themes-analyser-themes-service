@@ -27,3 +27,7 @@ class EmotionalProfile(BaseModel):
     defiance: EmotionPercentage
     gratitude: EmotionPercentage
     spirituality: EmotionPercentage
+
+
+class AnalysisResponse(AnalysisRequest):
+    emotional_profile: EmotionalProfile
