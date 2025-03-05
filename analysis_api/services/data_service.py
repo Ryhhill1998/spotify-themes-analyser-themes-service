@@ -1,5 +1,4 @@
 import asyncio
-import threading
 
 from analysis_api.models import AnalysisRequest, EmotionalProfile, AnalysisResponse
 from analysis_api.services.model_service import ModelService
