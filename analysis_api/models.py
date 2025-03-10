@@ -11,7 +11,7 @@ class AnalysisRequest(BaseModel):
 EmotionPercentage = Annotated[float, Field(ge=0, le=1)]
 
 
-class EmotionalProfile(BaseModel):
+class EmotionalAnalysis(BaseModel):
     joy: EmotionPercentage
     sadness: EmotionPercentage
     anger: EmotionPercentage
@@ -29,5 +29,5 @@ class EmotionalProfile(BaseModel):
     spirituality: EmotionPercentage
 
 
-class AnalysisResponse(AnalysisRequest):
-    emotional_profile: EmotionalProfile
+class EmotionalProfile(AnalysisRequest):
+    emotional_analysis: EmotionalAnalysis

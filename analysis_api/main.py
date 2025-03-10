@@ -5,7 +5,7 @@ import redis.asyncio as redis
 from fastapi import FastAPI, Depends
 
 from analysis_api.dependencies import get_data_service
-from analysis_api.models import AnalysisRequest, AnalysisResponse
+from analysis_api.models import AnalysisRequest, EmotionalProfile
 from analysis_api.services.data_service import DataService
 from analysis_api.services.model_service import ModelService
 from analysis_api.services.storage_service import StorageService
@@ -46,9 +46,10 @@ app = FastAPI(lifespan=lifespan)
 async def get_emotional_profile(
         analysis_requests: list[AnalysisRequest],
         data_service: Annotated[DataService, Depends(get_data_service)]
-) -> list[AnalysisResponse]:
+) -> list[EmotionalProfile]:
     try:
-        analysis_response_list = await data_service.get_emotional_analysis_list(analysis_requests)
-        return analysis_response_list
+        emotional_profiles = await data_service.get_emotional_profiles(analysis_requests)
+        return emotional_profiles
     except Exception as e:
         print(e)
+        raise
