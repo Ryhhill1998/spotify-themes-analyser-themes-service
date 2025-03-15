@@ -1,7 +1,7 @@
 import asyncio
 import json
 
-from analysis_api.models import AnalysisRequest, EmotionalAnalysis, EmotionalProfile
+from analysis_api.models import AnalysisRequest, EmotionalProfile, EmotionalProfileResponse, EmotionalTagsResponse
 from analysis_api.services.model_service import ModelService
 from analysis_api.services.storage_service import StorageService
 
@@ -11,41 +11,37 @@ class DataService:
         self.model_service = model_service
         self.storage_service = storage_service
 
-    async def _get_track_emotional_analysis(self, track_id: str, lyrics: str) -> EmotionalAnalysis:
-        item = await self.storage_service.retrieve_item(track_id)
+    async def get_emotional_profile(self, analysis_request: AnalysisRequest) -> EmotionalProfileResponse:
+        track_id = analysis_request.track_id
+        lyrics = analysis_request.lyrics
+        storage_key = f"{track_id}_profile"
+
+        item = await self.storage_service.retrieve_item(storage_key)
 
         if item is not None:
-            data = json.loads(item)
+            json_data = json.loads(item)
         else:
             data = await asyncio.to_thread(self.model_service.generate_response, lyrics)
-            await self.storage_service.store_item(key=track_id, value=json.dumps(data))
+            json_data = json.loads(data)
+            await self.storage_service.store_item(key=storage_key, value=json.dumps(json_data))
 
-        emotional_profile = EmotionalAnalysis(**data)
+        emotional_profile = EmotionalProfile(**json_data)
+        analysis_response = EmotionalProfileResponse(track_id=track_id, emotional_profile=emotional_profile, lyrics=lyrics)
 
-        return emotional_profile
+        return analysis_response
 
-    async def _get_track_emotional_profile(self, track_id: str, lyrics: str) -> EmotionalProfile:
-        emotional_profile = await self._get_track_emotional_analysis(track_id=track_id, lyrics=lyrics)
 
-        emotional_profile_response = EmotionalProfile(
-            track_id=track_id,
-            lyrics=lyrics,
-            emotional_analysis=emotional_profile
-        )
+    async def get_emotional_tags(self, analysis_request: AnalysisRequest) -> EmotionalTagsResponse:
+        track_id = analysis_request.track_id
+        storage_key = f"{track_id}_tags"
 
-        return emotional_profile_response
+        data = await self.storage_service.retrieve_item(storage_key)
 
-    async def get_emotional_profiles(self, analysis_requests: list[AnalysisRequest]) -> list[EmotionalProfile]:
-        tasks = [
-            self._get_track_emotional_profile(
-                track_id=req.track_id,
-                lyrics=req.lyrics
-            )
-            for req
-            in analysis_requests
-        ]
+        if data is None:
+            data = await asyncio.to_thread(self.model_service.generate_response, analysis_request.lyrics)
+            data = data.replace("\\", "")
+            await self.storage_service.store_item(key=storage_key, value=data)
 
-        emotional_profiles = await asyncio.gather(*tasks, return_exceptions=True)
-        successful_results = [item for item in emotional_profiles if isinstance(item, EmotionalProfile)]
+        emotional_tagging_response = EmotionalTagsResponse(track_id=track_id, lyrics=data)
 
-        return successful_results
+        return emotional_tagging_response

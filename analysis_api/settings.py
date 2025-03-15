@@ -11,7 +11,9 @@ class Settings(BaseSettings):
     model_temp: float
     model_top_p: float
     model_max_output_tokens: int
-    model_prompt_path: Path
+    model_prompts_path: Path
+    model_emotional_profile_prompt_file_name: str
+    model_emotional_tagging_prompt_file_name: str
 
     redis_host: str
     redis_port: int

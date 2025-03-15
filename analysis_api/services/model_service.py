@@ -62,6 +62,6 @@ class ModelService:
             config=self.config
         )
 
-        data = json.loads(json.loads(res.text)["response"])
+        data = json.loads(res.text)["response"]
 
         return data

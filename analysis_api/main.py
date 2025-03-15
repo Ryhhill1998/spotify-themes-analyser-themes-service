@@ -5,9 +5,8 @@ import redis.asyncio as redis
 from fastapi import FastAPI, Depends
 
 from analysis_api.dependencies import get_data_service
-from analysis_api.models import AnalysisRequest, EmotionalProfile
+from analysis_api.models import AnalysisRequest, EmotionalProfileResponse, EmotionalTagsResponse
 from analysis_api.services.data_service import DataService
-from analysis_api.services.model_service import ModelService
 from analysis_api.services.storage_service import StorageService
 from analysis_api.settings import Settings
 
@@ -16,24 +15,18 @@ from analysis_api.settings import Settings
 async def lifespan(app: FastAPI):
     settings = Settings()
 
-    with open(settings.model_prompt_path) as model_prompt_file:
-        model_prompt = model_prompt_file.read()
+    prompts_path = settings.model_prompts_path
 
-    app.state.model_service = ModelService(
-        project_id=settings.gcp_project_id,
-        location=settings.gcp_location,
-        model=settings.model_name,
-        prompt_template=model_prompt,
-        temp=settings.model_temp,
-        top_p=settings.model_top_p,
-        max_output_tokens=settings.model_max_output_tokens
-    )
+    with open(prompts_path / settings.model_emotional_profile_prompt_file_name) as emotional_profile_prompt_file:
+        app.state.model_emotional_profile_prompt = emotional_profile_prompt_file.read()
+
+    with open(prompts_path / settings.model_emotional_tagging_prompt_file_name) as emotional_tagging_prompt_file:
+        app.state.model_emotional_tagging_prompt = emotional_tagging_prompt_file.read()
 
     redis_client = redis.Redis(host=settings.redis_host, port=settings.redis_port, decode_responses=True)
 
     try:
         app.state.storage_service = StorageService(redis_client)
-
         yield
     finally:
         await redis_client.aclose()
@@ -44,12 +37,25 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/emotional-profile")
 async def get_emotional_profile(
-        analysis_requests: list[AnalysisRequest],
+        analysis_request: AnalysisRequest,
         data_service: Annotated[DataService, Depends(get_data_service)]
-) -> list[EmotionalProfile]:
+) -> EmotionalProfileResponse:
     try:
-        emotional_profiles = await data_service.get_emotional_profiles(analysis_requests)
-        return emotional_profiles
+        emotional_profile = await data_service.get_emotional_profile(analysis_request)
+        return emotional_profile
+    except Exception as e:
+        print(e)
+        raise
+
+
+@app.post("/emotional-tags")
+async def get_emotional_tags(
+        analysis_request: AnalysisRequest,
+        data_service: Annotated[DataService, Depends(get_data_service)]
+) -> EmotionalTagsResponse:
+    try:
+        emotional_tags = await data_service.get_emotional_tags(analysis_request)
+        return emotional_tags
     except Exception as e:
         print(e)
         raise

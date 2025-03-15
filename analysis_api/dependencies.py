@@ -14,8 +14,21 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def get_model_service(request: Request) -> ModelService:
-    return request.app.state.model_service
+def get_model_service(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> ModelService:
+    if "profile" in request.url.path:
+        prompt = request.app.state.model_emotional_profile_prompt
+    elif "tags":
+        prompt = request.app.state.model_emotional_tagging_prompt
+
+    return ModelService(
+        project_id=settings.gcp_project_id,
+        location=settings.gcp_location,
+        model=settings.model_name,
+        prompt_template=prompt,
+        temp=settings.model_temp,
+        top_p=settings.model_top_p,
+        max_output_tokens=settings.model_max_output_tokens
+    )
 
 
 def get_storage_service(request: Request) -> StorageService:
