@@ -1,7 +1,8 @@
 import asyncio
 import json
 
-from analysis_api.models import AnalysisRequest, EmotionalProfile, EmotionalProfileResponse, EmotionalTagsResponse
+from analysis_api.models import EmotionalProfile, EmotionalProfileResponse, EmotionalTagsResponse, \
+    EmotionalProfileRequest, EmotionalTagsRequest
 from analysis_api.services.model_service import ModelService
 from analysis_api.services.storage_service import StorageService
 
@@ -11,9 +12,10 @@ class DataService:
         self.model_service = model_service
         self.storage_service = storage_service
 
-    async def get_emotional_profile(self, analysis_request: AnalysisRequest) -> EmotionalProfileResponse:
-        track_id = analysis_request.track_id
-        lyrics = analysis_request.lyrics
+    async def get_emotional_profile(self, request: EmotionalProfileRequest) -> EmotionalProfileResponse:
+        track_id = request.track_id
+        lyrics = request.lyrics
+
         storage_key = f"{track_id}_profile"
 
         item = await self.storage_service.retrieve_item(storage_key)
@@ -31,17 +33,20 @@ class DataService:
         return analysis_response
 
 
-    async def get_emotional_tags(self, analysis_request: AnalysisRequest) -> EmotionalTagsResponse:
-        track_id = analysis_request.track_id
-        storage_key = f"{track_id}_tags"
+    async def get_emotional_tags(self, request: EmotionalTagsRequest) -> EmotionalTagsResponse:
+        track_id = request.track_id
+        emotion = request.emotion
+
+        storage_key = f"{track_id}_tags_{emotion}"
 
         data = await self.storage_service.retrieve_item(storage_key)
 
         if data is None:
-            data = await asyncio.to_thread(self.model_service.generate_response, analysis_request.lyrics)
+            model_input = f"\nEmotion to Tag: {emotion}\nLyrics: {request.lyrics}"
+            data = await asyncio.to_thread(self.model_service.generate_response, model_input)
             data = data.replace("\\", "")
             await self.storage_service.store_item(key=storage_key, value=data)
 
-        emotional_tagging_response = EmotionalTagsResponse(track_id=track_id, lyrics=data)
+        emotional_tagging_response = EmotionalTagsResponse(track_id=track_id, emotion=emotion, lyrics=data)
 
         return emotional_tagging_response

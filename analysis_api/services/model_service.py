@@ -1,4 +1,5 @@
 import json
+from json import JSONDecodeError
 
 from google import genai
 from google.genai import types
@@ -62,6 +63,9 @@ class ModelService:
             config=self.config
         )
 
-        data = json.loads(res.text)["response"]
-
-        return data
+        try:
+            response_data = json.loads(res.text)["response"]
+            return response_data
+        except JSONDecodeError as e:
+            print(e)
+            raise

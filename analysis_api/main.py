@@ -5,7 +5,8 @@ import redis.asyncio as redis
 from fastapi import FastAPI, Depends
 
 from analysis_api.dependencies import get_data_service
-from analysis_api.models import AnalysisRequest, EmotionalProfileResponse, EmotionalTagsResponse
+from analysis_api.models import EmotionalProfileResponse, EmotionalTagsResponse, EmotionalTagsRequest, \
+    EmotionalProfileRequest
 from analysis_api.services.data_service import DataService
 from analysis_api.services.storage_service import StorageService
 from analysis_api.settings import Settings
@@ -37,11 +38,11 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/emotional-profile")
 async def get_emotional_profile(
-        analysis_request: AnalysisRequest,
+        request: EmotionalProfileRequest,
         data_service: Annotated[DataService, Depends(get_data_service)]
 ) -> EmotionalProfileResponse:
     try:
-        emotional_profile = await data_service.get_emotional_profile(analysis_request)
+        emotional_profile = await data_service.get_emotional_profile(request)
         return emotional_profile
     except Exception as e:
         print(e)
@@ -50,11 +51,11 @@ async def get_emotional_profile(
 
 @app.post("/emotional-tags")
 async def get_emotional_tags(
-        analysis_request: AnalysisRequest,
+        request: EmotionalTagsRequest,
         data_service: Annotated[DataService, Depends(get_data_service)]
 ) -> EmotionalTagsResponse:
     try:
-        emotional_tags = await data_service.get_emotional_tags(analysis_request)
+        emotional_tags = await data_service.get_emotional_tags(request)
         return emotional_tags
     except Exception as e:
         print(e)

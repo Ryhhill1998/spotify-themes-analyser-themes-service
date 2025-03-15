@@ -1,11 +1,15 @@
 from typing import Annotated
-
+from enum import Enum
 from pydantic import BaseModel, Field
 
 
-class AnalysisRequest(BaseModel):
+class AnalysisRequestBase(BaseModel):
     track_id: str
     lyrics: str
+    
+
+class EmotionalProfileRequest(AnalysisRequestBase):
+    pass
 
 
 EmotionPercentage = Annotated[float, Field(ge=0, le=1)]
@@ -29,9 +33,31 @@ class EmotionalProfile(BaseModel):
     spirituality: EmotionPercentage
 
 
-class EmotionalProfileResponse(AnalysisRequest):
+class EmotionalProfileResponse(EmotionalProfileRequest):
     emotional_profile: EmotionalProfile
 
 
-class EmotionalTagsResponse(AnalysisRequest):
+class Emotion(Enum):
+    JOY = "joy"
+    SADNESS = "sadness"
+    ANGER = "anger"
+    FEAR = "fear"
+    LOVE = "love"
+    HOPE = "hope"
+    NOSTALGIA = "nostalgia"
+    LONELINESS = "loneliness"
+    CONFIDENCE = "confidence"
+    DESPAIR = "despair"
+    EXCITEMENT = "excitement"
+    MYSTERY = "mystery"
+    DEFIANCE = "defiance"
+    GRATITUDE = "gratitude"
+    SPIRITUALITY = "spirituality"
+
+
+class EmotionalTagsRequest(AnalysisRequestBase):
+    emotion: str
+
+
+class EmotionalTagsResponse(EmotionalTagsRequest):
     pass
