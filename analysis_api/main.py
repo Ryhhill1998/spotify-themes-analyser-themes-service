@@ -1,15 +1,10 @@
 from contextlib import asynccontextmanager
-from typing import Annotated
-
 import redis.asyncio as redis
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 
-from analysis_api.dependencies import get_data_service
-from analysis_api.models import EmotionalProfileResponse, EmotionalTagsResponse, EmotionalTagsRequest, \
-    EmotionalProfileRequest
-from analysis_api.services.data_service import DataService
 from analysis_api.services.storage_service import StorageService
 from analysis_api.settings import Settings
+from analysis_api.routers import emotions
 
 
 @asynccontextmanager
@@ -35,28 +30,4 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
-@app.post("/emotional-profile")
-async def get_emotional_profile(
-        request: EmotionalProfileRequest,
-        data_service: Annotated[DataService, Depends(get_data_service)]
-) -> EmotionalProfileResponse:
-    try:
-        emotional_profile = await data_service.get_emotional_profile(request)
-        return emotional_profile
-    except Exception as e:
-        print(e)
-        raise
-
-
-@app.post("/emotional-tags")
-async def get_emotional_tags(
-        request: EmotionalTagsRequest,
-        data_service: Annotated[DataService, Depends(get_data_service)]
-) -> EmotionalTagsResponse:
-    try:
-        emotional_tags = await data_service.get_emotional_tags(request)
-        return emotional_tags
-    except Exception as e:
-        print(e)
-        raise
+app.include_router(emotions.router)
