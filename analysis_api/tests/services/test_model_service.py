@@ -1,9 +1,9 @@
-from unittest import mock
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock
 
 import pytest
+import requests
 from google import genai
-from google.genai import types
+from google.genai import types, errors
 
 from analysis_api.services.model_service import ModelService, ModelServiceException
 
@@ -11,9 +11,9 @@ from analysis_api.services.model_service import ModelService, ModelServiceExcept
 # 1. Test that generate_response raises ModelServiceException if response.text not valid JSON.
 # 2. Test that generate_response raises ModelServiceException if 'error' in json_response.
 # 3. Test that generate_response raises ModelServiceException if 'response' not in json_response.
-# 4. Test that generate_response returns expected string.
-# 5. Test that generate_response returns expected JSON.
-# 6. Test that generate_response raises ModelServiceException if Model API errors occurs.
+# 4. Test that generate_response raises ModelServiceException if Model API errors occurs.
+# 5. Test that generate_response returns expected string.
+# 6. Test that generate_response returns expected JSON.
 
 
 @pytest.fixture
@@ -22,8 +22,24 @@ def mock_client() -> Mock:
 
 
 @pytest.fixture
-def model_service(mock_client) -> ModelService:
-    return ModelService(
+def mock__generate_contents() -> Mock:
+    mock = Mock()
+    mock.return_value = "prompt"
+    return mock
+
+
+@pytest.fixture
+def mock_generate_content() -> Mock:
+    mock = Mock(spec=types.GenerateContentResponse)
+    mock_response = Mock()
+    mock_response.text = ""
+    mock.return_value = mock_response
+    return mock
+
+
+@pytest.fixture
+def model_service(mock_client, mock__generate_contents, mock_generate_content) -> ModelService:
+    ms = ModelService(
         client=mock_client,
         model="",
         prompt_template="",
@@ -33,33 +49,35 @@ def model_service(mock_client) -> ModelService:
         top_p=0.0,
         max_output_tokens=0
     )
+    ms._generate_contents = mock__generate_contents
+    ms.client.models.generate_content = mock_generate_content
+    return ms
 
 
-def test_generate_response_invalid_json(model_service):
-    mock__generate_contents = Mock()
-    mock__generate_contents.return_value = "prompt"
-    mock_generate_content = Mock()
-    mock_response = Mock(spec=types.GenerateContentResponse)
-    mock_response.text = "invalid JSON"
-    mock_generate_content.return_value = mock_response
-
-    model_service._generate_contents = mock__generate_contents
-    model_service.client.models.generate_content = mock_generate_content
+def test_generate_response_invalid_json(model_service, mock_generate_content):
+    mock_generate_content.return_value.text = "invalid JSON"
 
     with pytest.raises(ModelServiceException, match="res.text is not valid JSON"):
         model_service.generate_response("")
 
 
-def test_generate_response_error_key_in_json(model_service):
-    mock__generate_contents = Mock()
-    mock__generate_contents.return_value = "prompt"
-    mock_generate_content = Mock()
-    mock_response = Mock(spec=types.GenerateContentResponse)
-    mock_response.text = '{"error": {"message": "Test error"}, "response": "Test response"}'
-    mock_generate_content.return_value = mock_response
-
-    model_service._generate_contents = mock__generate_contents
-    model_service.client.models.generate_content = mock_generate_content
+def test_generate_response_error_key_in_json(model_service, mock_generate_content):
+    mock_generate_content.return_value.text = '{"error": {"message": "Test error"}, "response": "Test response"}'
 
     with pytest.raises(ModelServiceException, match="Model error"):
+        model_service.generate_response("")
+
+
+def test_generate_response_no_response_key_in_json(model_service, mock_generate_content):
+    mock_generate_content.return_value.text = '{"data": "Test data"}'
+
+    with pytest.raises(ModelServiceException, match="json_response has no key 'response'"):
+        model_service.generate_response("")
+
+
+def test_generate_response_api_error(model_service, mock_generate_content):
+    mock_response = Mock(spec=requests.Response)
+    mock_generate_content.side_effect = errors.APIError(code=500, response=mock_response)
+
+    with pytest.raises(ModelServiceException, match="Model API error"):
         model_service.generate_response("")
