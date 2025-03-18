@@ -2,10 +2,27 @@ import json
 from json import JSONDecodeError
 
 from google import genai
-from google.genai import types
+from google.genai import types, errors
+
+
+class ModelServiceException(Exception):
+    """Exception raised when generating a response from the model fails."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
 
 
 class ModelService:
+    SAFETY_SETTINGS = [
+        types.SafetySetting(category=types.HarmCategory(c), threshold=types.HarmBlockThreshold("OFF"))
+        for c in [
+            "HARM_CATEGORY_HATE_SPEECH",
+            "HARM_CATEGORY_DANGEROUS_CONTENT",
+            "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+            "HARM_CATEGORY_HARASSMENT"
+        ]
+    ]
+
     def __init__(
             self,
             project_id: str,
@@ -30,19 +47,7 @@ class ModelService:
             top_p=self.top_p,
             max_output_tokens=self.max_output_tokens,
             response_modalities=["TEXT"],
-            safety_settings=[types.SafetySetting(
-                category="HARM_CATEGORY_HATE_SPEECH",
-                threshold="OFF"
-            ), types.SafetySetting(
-                category="HARM_CATEGORY_DANGEROUS_CONTENT",
-                threshold="OFF"
-            ), types.SafetySetting(
-                category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                threshold="OFF"
-            ), types.SafetySetting(
-                category="HARM_CATEGORY_HARASSMENT",
-                threshold="OFF"
-            )],
+            safety_settings=self.SAFETY_SETTINGS,
             response_mime_type="application/json",
             response_schema={"type": "OBJECT", "properties": {"response": {"type": "STRING"}}},
         )
@@ -54,18 +59,40 @@ class ModelService:
 
         return contents
 
-    def generate_response(self, data: str):
-        prompt = f"{self.prompt_template}\n{data}"
+    @staticmethod
+    def _parse_model_response(response: types.GenerateContentResponse) -> dict | str:
+        try:
+            json_response = json.loads(response.text)
 
-        res = self.client.models.generate_content(
-            model=self.model,
-            contents=self._generate_contents(prompt),
-            config=self.config
-        )
+            if "error" in json_response:
+                raise ModelServiceException(f"Model error: {json_response['error'].get('message', 'Unknown error')}")
+
+            response_data = json_response.get("response")
+
+            if response_data is None:
+                message = f"json_response has no key 'response': {json_response}"
+                print(message)
+                raise ModelServiceException(message)
+
+            return response_data
+        except errors.APIError as e:
+            message = f"Gemini API error: {e}"
+            print(message)
+            raise ModelServiceException(message)
+        except JSONDecodeError as e:
+            message = f"res.text is not valid JSON: {response.text} - {e}"
+            print(message)
+            raise ModelServiceException(message)
+
+    def generate_response(self, input_data: str) -> dict | str:
+        prompt = f"{self.prompt_template}\n{input_data}"
+        contents = self._generate_contents(prompt)
 
         try:
-            response_data = json.loads(res.text)["response"]
-            return response_data
-        except JSONDecodeError as e:
-            print(e)
-            raise
+            res = self.client.models.generate_content(model=self.model, contents=contents, config=self.config)
+        except errors.APIError as e:
+            message = f"Gemini API error: {e}"
+            print(message)
+            raise ModelServiceException(message)
+
+        return self._parse_model_response(res)
