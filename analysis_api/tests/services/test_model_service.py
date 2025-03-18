@@ -1,3 +1,4 @@
+import json
 from unittest.mock import Mock
 
 import pytest
@@ -81,3 +82,10 @@ def test_generate_response_api_error(model_service, mock_generate_content):
 
     with pytest.raises(ModelServiceException, match="Model API error"):
         model_service.generate_response("")
+
+
+@pytest.mark.parametrize("expected_response", ["string", {"key": "value"}])
+def test_generate_response_returns_expected_response(model_service, mock_generate_content, expected_response):
+    mock_generate_content.return_value.text = json.dumps({"response": expected_response})
+
+    assert model_service.generate_response("") == expected_response
