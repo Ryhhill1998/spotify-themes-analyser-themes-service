@@ -15,7 +15,11 @@ def get_settings() -> Settings:
     return Settings()
 
 
-def get_model_service(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> ModelService:
+def get_genai_client(request: Request) -> genai.Client:
+    return request.app.state.genai_client
+
+
+def get_model_config(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> tuple[str, str, str]:
     if "profile" in request.url.path:
         prompt = request.app.state.model_emotional_profile_prompt
         response_type = settings.model_emotional_profile_response_type
@@ -27,8 +31,18 @@ def get_model_service(request: Request, settings: Annotated[Settings, Depends(ge
     else:
         raise Exception("Invalid path")
 
+    return prompt, response_type, response_mime_type
+
+
+def get_model_service(
+        settings: Annotated[Settings, Depends(get_settings)],
+        model_config: Annotated[tuple[str, str, str], Depends(get_model_config)],
+        genai_client: Annotated[genai.Client, Depends(get_genai_client)]
+) -> ModelService:
+    prompt, response_type, response_mime_type = model_config
+
     return ModelService(
-        client=genai.Client(vertexai=True, project=settings.project_id, location=settings.location),
+        client=genai_client,
         model=settings.model_name,
         prompt_template=prompt,
         temp=settings.model_temp,
