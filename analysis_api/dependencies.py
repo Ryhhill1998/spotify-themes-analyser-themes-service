@@ -17,8 +17,14 @@ def get_settings() -> Settings:
 def get_model_service(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> ModelService:
     if "profile" in request.url.path:
         prompt = request.app.state.model_emotional_profile_prompt
-    elif "tags":
+        response_type = settings.model_emotional_profile_response_type
+        response_mime_type = settings.model_emotional_profile_response_mime_type
+    elif "tags" in request.url.path:
         prompt = request.app.state.model_emotional_tagging_prompt
+        response_type = settings.model_emotional_tagging_response_type
+        response_mime_type = settings.model_emotional_tagging_response_mime_type
+    else:
+        raise Exception("Invalid path")
 
     return ModelService(
         project_id=settings.gcp_project_id,
@@ -26,6 +32,8 @@ def get_model_service(request: Request, settings: Annotated[Settings, Depends(ge
         model=settings.model_name,
         prompt_template=prompt,
         temp=settings.model_temp,
+        response_type=response_type,
+        response_mime_type=response_mime_type,
         top_p=settings.model_top_p,
         max_output_tokens=settings.model_max_output_tokens
     )

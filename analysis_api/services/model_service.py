@@ -29,6 +29,8 @@ class ModelService:
             location: str,
             model: str,
             prompt_template: str,
+            response_type: str,
+            response_mime_type: str,
             temp: float = 0.0,
             top_p: float = 0.95,
             max_output_tokens: int = 1000
@@ -36,6 +38,8 @@ class ModelService:
         self.client = genai.Client(vertexai=True, project=project_id, location=location)
         self.model = model
         self.prompt_template = prompt_template
+        self.response_type = response_type
+        self.response_mime_type = response_mime_type
         self.temp = temp
         self.top_p = top_p
         self.max_output_tokens = max_output_tokens
@@ -48,8 +52,8 @@ class ModelService:
             max_output_tokens=self.max_output_tokens,
             response_modalities=["TEXT"],
             safety_settings=self.SAFETY_SETTINGS,
-            response_mime_type="application/json",
-            response_schema={"type": "OBJECT", "properties": {"response": {"type": "STRING"}}},
+            response_mime_type=self.response_mime_type,
+            response_schema={"type": "OBJECT", "properties": {"response": {"type": self.response_type}}},
         )
 
     @staticmethod
@@ -63,26 +67,22 @@ class ModelService:
     def _parse_model_response(response: types.GenerateContentResponse) -> dict | str:
         try:
             json_response = json.loads(response.text)
-
-            if "error" in json_response:
-                raise ModelServiceException(f"Model error: {json_response['error'].get('message', 'Unknown error')}")
-
-            response_data = json_response.get("response")
-
-            if response_data is None:
-                message = f"json_response has no key 'response': {json_response}"
-                print(message)
-                raise ModelServiceException(message)
-
-            return response_data
-        except errors.APIError as e:
-            message = f"Gemini API error: {e}"
-            print(message)
-            raise ModelServiceException(message)
         except JSONDecodeError as e:
             message = f"res.text is not valid JSON: {response.text} - {e}"
             print(message)
             raise ModelServiceException(message)
+
+        if "error" in json_response:
+            raise ModelServiceException(f"Model error: {json_response['error'].get('message', 'Unknown error')}")
+
+        response_data = json_response.get("response")
+
+        if response_data is None:
+            message = f"json_response has no key 'response': {json_response}"
+            print(message)
+            raise ModelServiceException(message)
+
+        return response_data
 
     def generate_response(self, input_data: str) -> dict | str:
         prompt = f"{self.prompt_template}\n{input_data}"
@@ -91,7 +91,7 @@ class ModelService:
         try:
             res = self.client.models.generate_content(model=self.model, contents=contents, config=self.config)
         except errors.APIError as e:
-            message = f"Gemini API error: {e}"
+            message = f"Model API error - {e}"
             print(message)
             raise ModelServiceException(message)
 
