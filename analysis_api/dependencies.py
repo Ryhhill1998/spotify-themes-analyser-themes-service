@@ -2,6 +2,7 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, Request
+from google import genai
 
 from analysis_api.services.data_service import DataService
 from analysis_api.services.model_service import ModelService
@@ -27,8 +28,7 @@ def get_model_service(request: Request, settings: Annotated[Settings, Depends(ge
         raise Exception("Invalid path")
 
     return ModelService(
-        project_id=settings.gcp_project_id,
-        location=settings.gcp_location,
+        client=genai.Client(vertexai=True, project=settings.project_id, location=settings.location),
         model=settings.model_name,
         prompt_template=prompt,
         temp=settings.model_temp,

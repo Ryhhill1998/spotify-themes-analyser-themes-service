@@ -25,8 +25,7 @@ class ModelService:
 
     def __init__(
             self,
-            project_id: str,
-            location: str,
+            client: genai.Client,
             model: str,
             prompt_template: str,
             response_type: str,
@@ -35,7 +34,7 @@ class ModelService:
             top_p: float = 0.95,
             max_output_tokens: int = 1000
     ):
-        self.client = genai.Client(vertexai=True, project=project_id, location=location)
+        self.client = client
         self.model = model
         self.prompt_template = prompt_template
         self.response_type = response_type
