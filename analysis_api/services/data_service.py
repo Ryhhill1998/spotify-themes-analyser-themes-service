@@ -225,7 +225,7 @@ class DataService:
         except (ModelServiceException, StorageServiceException) as e:
             message = (
                 f"Failed to retrieve emotional tags for track_id: {track_id}, lyrics: {lyrics}, "
-                f"emotion: {emotion} - {e}"
+                f"emotion: {emotion.value} - {e}"
             )
             print(message)
             raise DataServiceException(message)

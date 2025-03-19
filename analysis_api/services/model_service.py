@@ -26,10 +26,6 @@ class ModelService:
         The name of the model used for generating responses.
     prompt_template : str
         A template for formatting input prompts.
-    response_type : str
-        The expected type of the response (e.g., "string", "object").
-    response_mime_type : str
-        The MIME type of the response (e.g., "application/json").
     temp : float, optional
         The temperature parameter for response variability, by default 0.0.
     top_p : float, optional
@@ -60,8 +56,6 @@ class ModelService:
             client: genai.Client,
             model: str,
             prompt_template: str,
-            response_type: str,
-            response_mime_type: str,
             temp: float = 0.0,
             top_p: float = 0.95,
             max_output_tokens: int = 1000
@@ -75,10 +69,6 @@ class ModelService:
             The name of the model used for generating responses.
         prompt_template : str
             A template for formatting input prompts.
-        response_type : str
-            The expected type of the response (e.g., "string", "object").
-        response_mime_type : str
-            The MIME type of the response (e.g., "application/json").
         temp : float, optional
             The temperature parameter for response variability, by default 0.0.
         top_p : float, optional
@@ -90,8 +80,6 @@ class ModelService:
         self.client = client
         self.model = model
         self.prompt_template = prompt_template
-        self.response_type = response_type
-        self.response_mime_type = response_mime_type
         self.temp = temp
         self.top_p = top_p
         self.max_output_tokens = max_output_tokens
@@ -113,8 +101,8 @@ class ModelService:
             max_output_tokens=self.max_output_tokens,
             response_modalities=["TEXT"],
             safety_settings=self.SAFETY_SETTINGS,
-            response_mime_type=self.response_mime_type,
-            response_schema={"type": "OBJECT", "properties": {"response": {"type": self.response_type}}},
+            response_mime_type="application/json",
+            response_schema={"type": "OBJECT", "properties": {"response": {"type": "STRING"}}},
         )
 
     @staticmethod
@@ -204,6 +192,7 @@ class ModelService:
 
         try:
             res = self.client.models.generate_content(model=self.model, contents=contents, config=self.config)
+            print(f"{res = }")
         except errors.APIError as e:
             message = f"Model API error - {e}"
             print(message)

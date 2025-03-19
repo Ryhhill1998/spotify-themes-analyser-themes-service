@@ -24,7 +24,11 @@ async def lifespan(app: FastAPI):
 
     try:
         app.state.storage_service = StorageService(redis_client)
-        app.state.genai_client = genai.Client(vertexai=True, project=settings.project_id, location=settings.location)
+        app.state.genai_client = genai.Client(
+            vertexai=True,
+            project=settings.gcp_project_id,
+            location=settings.gcp_location
+        )
         yield
     finally:
         await redis_client.aclose()

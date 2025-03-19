@@ -50,12 +50,11 @@ def get_genai_client(request: Request) -> genai.Client:
 GenaiClientDependency = Annotated[genai.Client, Depends(get_genai_client)]
 
 
-def get_model_config(request: Request, settings: SettingsDependency) -> tuple[str, str, str]:
+def get_model_prompt(request: Request, settings: SettingsDependency) -> str:
     """
-    Determines the appropriate model configuration based on the request path.
+    Determines the appropriate model prompt based on the request path.
 
-    The model configuration includes the prompt template, response type, and response MIME type.
-    The configuration is selected based on whether the request is for an emotional profile or emotional tags.
+    The prompt is selected based on whether the request is for an emotional profile or emotional tags.
 
     Parameters
     ----------
@@ -66,8 +65,8 @@ def get_model_config(request: Request, settings: SettingsDependency) -> tuple[st
 
     Returns
     -------
-    tuple[str, str, str]
-        A tuple containing the prompt template, response type, and response MIME type.
+    str
+        The prompt template to be used for this route.
 
     Raises
     ------
@@ -77,24 +76,20 @@ def get_model_config(request: Request, settings: SettingsDependency) -> tuple[st
 
     if "profile" in request.url.path:
         prompt = request.app.state.model_emotional_profile_prompt
-        response_type = settings.model_emotional_profile_response_type
-        response_mime_type = settings.model_emotional_profile_response_mime_type
     elif "tags" in request.url.path:
         prompt = request.app.state.model_emotional_tagging_prompt
-        response_type = settings.model_emotional_tagging_response_type
-        response_mime_type = settings.model_emotional_tagging_response_mime_type
     else:
         raise Exception("Invalid path")
 
-    return prompt, response_type, response_mime_type
+    return prompt
 
 
-ModelConfigDependency = Annotated[tuple[str, str, str], Depends(get_model_config)]
+ModelPromptDependency = Annotated[tuple[str, str], Depends(get_model_prompt)]
 
 
 def get_model_service(
         settings: SettingsDependency,
-        model_config: ModelConfigDependency,
+        model_prompt: ModelPromptDependency,
         genai_client: GenaiClientDependency
 ) -> ModelService:
     """
@@ -106,8 +101,8 @@ def get_model_service(
     ----------
     settings : Settings
         The application settings instance.
-    model_config : tuple[str, str, str]
-        A tuple containing the prompt template, response type, and response MIME type.
+    model_prompt : str
+        The prompt for the model.
     genai_client : genai.Client
         The GenAI client used for interacting with the model.
 
@@ -117,15 +112,11 @@ def get_model_service(
         The configured ModelService instance.
     """
 
-    prompt, response_type, response_mime_type = model_config
-
     return ModelService(
         client=genai_client,
         model=settings.model_name,
-        prompt_template=prompt,
+        prompt_template=model_prompt,
         temp=settings.model_temp,
-        response_type=response_type,
-        response_mime_type=response_mime_type,
         top_p=settings.model_top_p,
         max_output_tokens=settings.model_max_output_tokens
     )
