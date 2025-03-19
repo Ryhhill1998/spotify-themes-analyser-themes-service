@@ -12,14 +12,69 @@ from analysis_api.settings import Settings
 
 @lru_cache
 def get_settings() -> Settings:
+    """
+    Retrieves the application settings.
+
+    The settings are cached to optimize performance, ensuring they are only loaded once per application instance.
+
+    Returns
+    -------
+    Settings
+        The application settings instance.
+    """
+
     return Settings()
 
 
+SettingsDependency = Annotated[Settings, Depends(get_settings)]
+
+
 def get_genai_client(request: Request) -> genai.Client:
+    """
+    Retrieves the GenAI client from the FastAPI application state.
+
+    Parameters
+    ----------
+    request : Request
+        The FastAPI request object.
+
+    Returns
+    -------
+    genai.Client
+        The GenAI client instance stored in the application state.
+    """
+
     return request.app.state.genai_client
 
 
-def get_model_config(request: Request, settings: Annotated[Settings, Depends(get_settings)]) -> tuple[str, str, str]:
+GenaiClientDependency = Annotated[genai.Client, Depends(get_genai_client)]
+
+
+def get_model_config(request: Request, settings: SettingsDependency) -> tuple[str, str, str]:
+    """
+    Determines the appropriate model configuration based on the request path.
+
+    The model configuration includes the prompt template, response type, and response MIME type.
+    The configuration is selected based on whether the request is for an emotional profile or emotional tags.
+
+    Parameters
+    ----------
+    request : Request
+        The FastAPI request object.
+    settings : Settings
+        The application settings instance.
+
+    Returns
+    -------
+    tuple[str, str, str]
+        A tuple containing the prompt template, response type, and response MIME type.
+
+    Raises
+    ------
+    Exception
+        If the request path does not match expected endpoints.
+    """
+
     if "profile" in request.url.path:
         prompt = request.app.state.model_emotional_profile_prompt
         response_type = settings.model_emotional_profile_response_type
@@ -34,11 +89,34 @@ def get_model_config(request: Request, settings: Annotated[Settings, Depends(get
     return prompt, response_type, response_mime_type
 
 
+ModelConfigDependency = Annotated[tuple[str, str, str], Depends(get_model_config)]
+
+
 def get_model_service(
-        settings: Annotated[Settings, Depends(get_settings)],
-        model_config: Annotated[tuple[str, str, str], Depends(get_model_config)],
-        genai_client: Annotated[genai.Client, Depends(get_genai_client)]
+        settings: SettingsDependency,
+        model_config: ModelConfigDependency,
+        genai_client: GenaiClientDependency
 ) -> ModelService:
+    """
+    Creates and returns a ModelService instance.
+
+    The model service is responsible for generating responses using a specified AI model.
+
+    Parameters
+    ----------
+    settings : Settings
+        The application settings instance.
+    model_config : tuple[str, str, str]
+        A tuple containing the prompt template, response type, and response MIME type.
+    genai_client : genai.Client
+        The GenAI client used for interacting with the model.
+
+    Returns
+    -------
+    ModelService
+        The configured ModelService instance.
+    """
+
     prompt, response_type, response_mime_type = model_config
 
     return ModelService(
@@ -53,14 +131,49 @@ def get_model_service(
     )
 
 
+ModelServiceDependency = Annotated[ModelService, Depends(get_model_service)]
+
+
 def get_storage_service(request: Request) -> StorageService:
+    """
+    Retrieves the storage service from the FastAPI application state.
+
+    Parameters
+    ----------
+    request : Request
+        The FastAPI request object.
+
+    Returns
+    -------
+    StorageService
+        The storage service instance stored in the application state.
+    """
+
     return request.app.state.storage_service
 
 
-def get_data_service(
-        model_service: Annotated[ModelService, Depends(get_model_service)],
-        storage_service: Annotated[StorageService, Depends(get_storage_service)]
-) -> DataService:
+StorageServiceDependency = Annotated[StorageService, Depends(get_storage_service)]
+
+
+def get_data_service(model_service: ModelServiceDependency, storage_service: StorageServiceDependency) -> DataService:
+    """
+    Creates and returns a DataService instance.
+
+    The data service manages interactions between the model and the storage service.
+
+    Parameters
+    ----------
+    model_service : ModelService
+        The model service instance responsible for generating responses.
+    storage_service : StorageService
+        The storage service instance responsible for persisting data.
+
+    Returns
+    -------
+    DataService
+        The configured DataService instance.
+    """
+
     return DataService(model_service=model_service, storage_service=storage_service)
 
 

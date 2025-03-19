@@ -5,8 +5,7 @@ from fastapi.testclient import TestClient
 
 from analysis_api.dependencies import get_data_service
 from analysis_api.main import app
-from analysis_api.models import EmotionalTagsRequest, Emotion, EmotionalProfileRequest, EmotionalProfileResponse, \
-    EmotionalProfile, EmotionalTagsResponse
+from analysis_api.models import Emotion, EmotionalProfileResponse, EmotionalProfile, EmotionalTagsResponse
 from analysis_api.services.data_service import DataService, DataServiceException
 
 
