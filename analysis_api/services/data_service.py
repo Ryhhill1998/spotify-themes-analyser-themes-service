@@ -125,13 +125,13 @@ class DataService:
             emotional_profile_data = await self._get_emotional_profile_data(track_id=track_id, lyrics=lyrics)
 
             emotional_profile = EmotionalProfile(**emotional_profile_data)
-            analysis_response = EmotionalProfileResponse(
+            emotional_profile_response = EmotionalProfileResponse(
                 track_id=track_id,
                 emotional_profile=emotional_profile,
                 lyrics=lyrics
             )
 
-            return analysis_response
+            return emotional_profile_response
         except (ModelServiceException, StorageServiceException) as e:
             message = f"Failed to retrieve emotional profile for track_id: {track_id}, lyrics: {lyrics} - {e}"
             print(message)

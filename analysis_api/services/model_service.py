@@ -14,7 +14,7 @@ class ModelServiceException(Exception):
 
 class ModelService:
     """
-    A service for interacting with a generative AI model to generate text-based responses.
+    A service for interacting with a generative AI model to generate responses.
 
     Attributes
     ----------
@@ -151,8 +151,8 @@ class ModelService:
         Returns
         -------
         dict or str
-            The parsed response content. If the response is in JSON format, a dictionary is returned;
-            otherwise, a string.
+            The parsed response content. If the response is in JSON format, a dictionary is returned; otherwise, a
+            string.
 
         Raises
         ------
