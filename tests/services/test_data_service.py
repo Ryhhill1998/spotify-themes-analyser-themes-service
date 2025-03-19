@@ -27,7 +27,7 @@ def data_service(mock_model_service, mock_storage_service) -> DataService:
 
 # -------------------- EMOTIONAL PROFILE -------------------- #
 @pytest.fixture
-def mock_emotional_profile_data() -> dict:
+def mock_emotional_profile_data() -> dict[str, float]:
     return {
         "joy": 0.1,
         "sadness": 0.1,
