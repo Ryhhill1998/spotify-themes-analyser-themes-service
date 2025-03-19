@@ -85,14 +85,13 @@ class DataService:
 
         storage_key = f"{track_id}_profile"
 
-        item = await self.storage_service.retrieve_item(storage_key)
+        data = await self.storage_service.retrieve_item(storage_key)
 
-        if item is not None:
-            emotional_profile_data = json.loads(item)
-        else:
+        if data is None:
             data = await asyncio.to_thread(self.model_service.generate_response, lyrics)
             await self.storage_service.store_item(key=storage_key, value=data)
-            emotional_profile_data = json.loads(data)
+
+        emotional_profile_data = json.loads(data)
 
         return emotional_profile_data
 
@@ -210,7 +209,11 @@ class DataService:
         emotion = request.emotion
 
         try:
-            emotional_tags_data = await self._get_emotional_tags_data(track_id=track_id, lyrics=lyrics, emotion=emotion)
+            emotional_tags_data = await self._get_emotional_tags_data(
+                track_id=track_id,
+                lyrics=lyrics,
+                emotion=emotion.value
+            )
 
             emotional_tagging_response = EmotionalTagsResponse(
                 track_id=track_id,
@@ -221,7 +224,7 @@ class DataService:
             return emotional_tagging_response
         except (ModelServiceException, StorageServiceException) as e:
             message = (
-                f"Failed to retrieve emotional profile for track_id: {track_id}, lyrics: {lyrics}, "
+                f"Failed to retrieve emotional tags for track_id: {track_id}, lyrics: {lyrics}, "
                 f"emotion: {emotion} - {e}"
             )
             print(message)
