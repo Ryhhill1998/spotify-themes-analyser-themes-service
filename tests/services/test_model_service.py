@@ -40,7 +40,7 @@ def mock_generate_content() -> Mock:
 
 @pytest.fixture
 def model_service(mock_client, mock__generate_contents, mock_generate_content) -> ModelService:
-    ms = ModelService(client=mock_client, model="", prompt_template="", response_type="", response_mime_type="")
+    ms = ModelService(client=mock_client, model="", prompt_template="")
     ms._generate_contents = mock__generate_contents
     ms.client.models.generate_content = mock_generate_content
     return ms
