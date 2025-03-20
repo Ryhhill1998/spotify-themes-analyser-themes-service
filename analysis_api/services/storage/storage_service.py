@@ -33,12 +33,6 @@ async def initialise_db(db_path: str):
 
         await db.commit()
 
-        select_query = """SELECT name FROM sqlite_master WHERE type='table'"""
-
-        async with db.execute(select_query) as cursor:
-            tables = await cursor.fetchall()
-            print(f"{tables = }")
-
 
 class StorageServiceException(Exception):
     def __init__(self, message: str):
