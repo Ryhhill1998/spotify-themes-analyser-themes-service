@@ -6,7 +6,7 @@ import pydantic
 from analysis_api.models import EmotionalProfile, EmotionalProfileResponse, EmotionalTagsResponse, \
     EmotionalProfileRequest, EmotionalTagsRequest
 from analysis_api.services.model_service import ModelService, ModelServiceException
-from analysis_api.services.storage_service import StorageService, StorageServiceException
+from analysis_api.services.storage.storage_service import StorageService, StorageServiceException
 
 
 class DataServiceException(Exception):
@@ -83,15 +83,12 @@ class DataService:
             If there is an issue generating a response from the model.
         """
 
-        storage_key = f"{track_id}_profile"
+        emotional_profile_data = await self.storage_service.retrieve_profile(track_id)
 
-        data = await self.storage_service.retrieve_item(storage_key)
-
-        if data is None:
-            data = await asyncio.to_thread(self.model_service.generate_response, lyrics)
-            await self.storage_service.store_item(key=storage_key, value=data)
-
-        emotional_profile_data = json.loads(data)
+        if emotional_profile_data is None:
+            emotional_profile_data = await asyncio.to_thread(self.model_service.generate_response, lyrics)
+            emotional_profile_data = json.loads(emotional_profile_data)
+            await self.storage_service.store_profile(track_id=track_id, profile=emotional_profile_data)
 
         return emotional_profile_data
 
@@ -170,15 +167,13 @@ class DataService:
             If there is an issue generating a response from the model.
         """
 
-        storage_key = f"{track_id}_tags_{emotion}"
-
-        emotional_tags_data = await self.storage_service.retrieve_item(storage_key)
+        emotional_tags_data = await self.storage_service.retrieve_tags(track_id)
 
         if emotional_tags_data is None:
             model_input = f"\nEmotion to Tag: {emotion}\nLyrics: {lyrics}"
             emotional_tags_data = await asyncio.to_thread(self.model_service.generate_response, model_input)
             emotional_tags_data = emotional_tags_data.replace("\\", "")
-            await self.storage_service.store_item(key=storage_key, value=emotional_tags_data)
+            await self.storage_service.store_tags(track_id=track_id, tags=emotional_tags_data)
 
         return emotional_tags_data
 
