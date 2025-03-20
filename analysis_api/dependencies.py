@@ -126,6 +126,7 @@ ModelServiceDependency = Annotated[ModelService, Depends(get_model_service)]
 
 async def get_db_conn(settings: SettingsDependency):
     """Dependency to get an async database connection."""
+
     db = await aiosqlite.connect(settings.db_path)
 
     try:
