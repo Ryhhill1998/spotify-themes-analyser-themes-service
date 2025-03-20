@@ -61,13 +61,13 @@ async def test__get_emotional_profile_data_data_in_storage(
         mock_emotional_profile_data
 ):
     mock_retrieve_item = AsyncMock()
-    mock_retrieve_item.return_value = json.dumps(mock_emotional_profile_data)
-    mock_storage_service.retrieve_item = mock_retrieve_item
+    mock_retrieve_item.return_value = mock_emotional_profile_data
+    mock_storage_service.retrieve_profile = mock_retrieve_item
 
     data = await data_service._get_emotional_profile_data(track_id="1", lyrics="Lyrics for track 1")
 
     assert data == mock_emotional_profile_data
-    mock_storage_service.retrieve_item.assert_called_once_with("1_profile")
+    mock_storage_service.retrieve_profile.assert_called_once_with("1")
     mock_model_service.generate_response.assert_not_called()
 
 
@@ -79,21 +79,20 @@ async def test__get_emotional_profile_data_data_not_in_storage(
         mock_storage_service,
         mock_emotional_profile_data
 ):
-    mock_retrieve_item = AsyncMock()
-    mock_retrieve_item.return_value = None
-    mock_storage_service.retrieve_item = mock_retrieve_item
+    mock_retrieve_profile = AsyncMock()
+    mock_retrieve_profile.return_value = None
+    mock_storage_service.retrieve_profile = mock_retrieve_profile
     mock_generate_response = Mock()
-    json_string = json.dumps(mock_emotional_profile_data)
-    mock_generate_response.return_value = json_string
+    mock_generate_response.return_value = json.dumps(mock_emotional_profile_data)
     mock_model_service.generate_response = mock_generate_response
     lyrics = "Lyrics for track 1"
 
     data = await data_service._get_emotional_profile_data(track_id="1", lyrics=lyrics)
 
     assert data == mock_emotional_profile_data
-    mock_storage_service.retrieve_item.assert_called_once_with("1_profile")
+    mock_storage_service.retrieve_profile.assert_called_once_with("1")
     mock_model_service.generate_response.assert_called_once_with(lyrics)
-    mock_storage_service.store_item.assert_called_once_with(key="1_profile", value=json_string)
+    mock_storage_service.store_profile.assert_called_once_with(track_id="1", profile=mock_emotional_profile_data)
 
 
 # 3. Test that get_emotional_profile raises a DataServiceException if a StorageServiceException occurs.
@@ -215,14 +214,14 @@ async def test__get_emotional_tags_data_data_in_storage(
         mock_storage_service,
         mock_emotional_tags_data
 ):
-    mock_retrieve_item = AsyncMock()
-    mock_retrieve_item.return_value = mock_emotional_tags_data
-    mock_storage_service.retrieve_item = mock_retrieve_item
+    mock_retrieve_tags = AsyncMock()
+    mock_retrieve_tags.return_value = mock_emotional_tags_data
+    mock_storage_service.retrieve_tags = mock_retrieve_tags
 
     data = await data_service._get_emotional_tags_data(track_id="1", lyrics="Lyrics for track 1", emotion="joy")
 
     assert data == mock_emotional_tags_data
-    mock_storage_service.retrieve_item.assert_called_once_with("1_tags_joy")
+    mock_storage_service.retrieve_tags.assert_called_once_with("1")
     mock_model_service.generate_response.assert_not_called()
 
 
@@ -234,9 +233,9 @@ async def test__get_emotional_tags_data_data_not_in_storage(
         mock_storage_service,
         mock_emotional_tags_data
 ):
-    mock_retrieve_item = AsyncMock()
-    mock_retrieve_item.return_value = None
-    mock_storage_service.retrieve_item = mock_retrieve_item
+    mock_retrieve_tags = AsyncMock()
+    mock_retrieve_tags.return_value = None
+    mock_storage_service.retrieve_tags = mock_retrieve_tags
     mock_generate_response = Mock()
     mock_generate_response.return_value = mock_emotional_tags_data
     mock_model_service.generate_response = mock_generate_response
@@ -247,12 +246,9 @@ async def test__get_emotional_tags_data_data_not_in_storage(
     data = await data_service._get_emotional_tags_data(track_id=track_id, lyrics=lyrics, emotion=emotion)
 
     assert data == mock_emotional_tags_data
-    mock_storage_service.retrieve_item.assert_called_once_with(f"{track_id}_tags_{emotion}")
+    mock_storage_service.retrieve_tags.assert_called_once_with(track_id)
     mock_model_service.generate_response.assert_called_once_with(f"\nEmotion to Tag: {emotion}\nLyrics: {lyrics}")
-    mock_storage_service.store_item.assert_called_once_with(
-        key=f"{track_id}_tags_{emotion}",
-        value=mock_emotional_tags_data
-    )
+    mock_storage_service.store_tags.assert_called_once_with(track_id=track_id, tags=mock_emotional_tags_data)
 
 
 # 3. Test that get_emotional_tags raises a DataServiceException if a ModelServiceException occurs.
