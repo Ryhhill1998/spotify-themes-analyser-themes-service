@@ -33,4 +33,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+@app.get("/")
+def health_check():
+    return {"status": "running"}
+
+
 app.include_router(emotions.router)
