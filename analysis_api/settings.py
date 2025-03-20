@@ -16,13 +16,6 @@ class Settings(BaseSettings):
     model_emotional_profile_prompt_file_name: str
     model_emotional_tagging_prompt_file_name: str
 
-    model_emotional_profile_response_type: str
-    model_emotional_tagging_response_type: str
-
-    model_emotional_profile_response_mime_type: str
-    model_emotional_tagging_response_mime_type: str
-
-    redis_host: str
-    redis_port: int
+    db_path: str
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")

@@ -7,7 +7,7 @@ from analysis_api.models import EmotionalProfileRequest, EmotionalProfileRespons
     EmotionalTagsRequest, Emotion, EmotionalTagsResponse
 from analysis_api.services.data_service import DataService, DataServiceException
 from analysis_api.services.model_service import ModelService, ModelServiceException
-from analysis_api.services.storage_service import StorageService, StorageServiceException
+from analysis_api.services.storage.storage_service import StorageService, StorageServiceException
 
 
 @pytest.fixture

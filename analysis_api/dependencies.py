@@ -1,12 +1,13 @@
 from functools import lru_cache
 from typing import Annotated
 
+import aiosqlite
 from fastapi import Depends, Request
 from google import genai
 
 from analysis_api.services.data_service import DataService
 from analysis_api.services.model_service import ModelService
-from analysis_api.services.storage_service import StorageService
+from analysis_api.services.storage.storage_service import StorageService
 from analysis_api.settings import Settings
 
 
@@ -50,7 +51,7 @@ def get_genai_client(request: Request) -> genai.Client:
 GenaiClientDependency = Annotated[genai.Client, Depends(get_genai_client)]
 
 
-def get_model_prompt(request: Request, settings: SettingsDependency) -> str:
+def get_model_prompt(request: Request) -> str:
     """
     Determines the appropriate model prompt based on the request path.
 
@@ -60,8 +61,6 @@ def get_model_prompt(request: Request, settings: SettingsDependency) -> str:
     ----------
     request : Request
         The FastAPI request object.
-    settings : Settings
-        The application settings instance.
 
     Returns
     -------
@@ -84,7 +83,7 @@ def get_model_prompt(request: Request, settings: SettingsDependency) -> str:
     return prompt
 
 
-ModelPromptDependency = Annotated[tuple[str, str], Depends(get_model_prompt)]
+ModelPromptDependency = Annotated[str, Depends(get_model_prompt)]
 
 
 def get_model_service(
@@ -125,22 +124,36 @@ def get_model_service(
 ModelServiceDependency = Annotated[ModelService, Depends(get_model_service)]
 
 
-def get_storage_service(request: Request) -> StorageService:
+async def get_db_conn(settings: SettingsDependency):
+    """Dependency to get an async database connection."""
+
+    db = await aiosqlite.connect(settings.db_path)
+
+    try:
+        yield db  # Provide connection to route handlers
+    finally:
+        await db.close()
+
+
+DBConnectionDependency = Annotated[aiosqlite.Connection, Depends(get_db_conn)]
+
+
+def get_storage_service(db_conn: DBConnectionDependency) -> StorageService:
     """
     Retrieves the storage service from the FastAPI application state.
 
     Parameters
     ----------
-    request : Request
-        The FastAPI request object.
+    db_conn : DBConnectionDependency
+        The connection to the database.
 
     Returns
     -------
     StorageService
-        The storage service instance stored in the application state.
+        The configured StorageService instance.
     """
 
-    return request.app.state.storage_service
+    return StorageService(db_conn)
 
 
 StorageServiceDependency = Annotated[StorageService, Depends(get_storage_service)]

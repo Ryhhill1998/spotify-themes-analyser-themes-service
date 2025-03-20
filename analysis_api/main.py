@@ -1,9 +1,8 @@
 from contextlib import asynccontextmanager
-import redis.asyncio as redis
 from fastapi import FastAPI
 from google import genai
 
-from analysis_api.services.storage_service import StorageService
+from analysis_api.services.storage.storage_service import initialise_db
 from analysis_api.settings import Settings
 from analysis_api.routers import emotions
 
@@ -20,18 +19,16 @@ async def lifespan(app: FastAPI):
     with open(prompts_path / settings.model_emotional_tagging_prompt_file_name) as emotional_tagging_prompt_file:
         app.state.model_emotional_tagging_prompt = emotional_tagging_prompt_file.read()
 
-    redis_client = redis.Redis(host=settings.redis_host, port=settings.redis_port, decode_responses=True)
+    app.state.genai_client = genai.Client(
+        vertexai=True,
+        project=settings.gcp_project_id,
+        location=settings.gcp_location
+    )
 
-    try:
-        app.state.storage_service = StorageService(redis_client)
-        app.state.genai_client = genai.Client(
-            vertexai=True,
-            project=settings.gcp_project_id,
-            location=settings.gcp_location
-        )
-        yield
-    finally:
-        await redis_client.aclose()
+    # initialise database
+    await initialise_db(settings.db_path)
+
+    yield
 
 
 app = FastAPI(lifespan=lifespan)

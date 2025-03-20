@@ -95,16 +95,16 @@ class EmotionalProfile(BaseModel):
     gratitude: EmotionPercentage
     spirituality: EmotionPercentage
 
-    @model_validator(mode='after')
-    def check_total_proportions_at_most_1(self) -> Self:
-        values = self.model_dump().values()
-        total_emotion_percentage = sum(values)
-
-        if round(total_emotion_percentage, 5) != 1.0:
-            print(f"{total_emotion_percentage = }")
-            raise ValueError("Total emotion percentage should always equal 1.")
-
-        return self
+    # @model_validator(mode='after')
+    # def check_total_proportions_at_most_1(self) -> Self:
+    #     values = self.model_dump().values()
+    #     total_emotion_percentage = sum(values)
+    #
+    #     if round(total_emotion_percentage, 5) != 1.0:
+    #         print(f"{total_emotion_percentage = }")
+    #         raise ValueError("Total emotion percentage should always equal 1.")
+    #
+    #     return self
 
 
 class EmotionalProfileResponse(EmotionalProfileRequest):
