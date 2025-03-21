@@ -71,10 +71,13 @@ async def test_initialise_db_creates_table():
 
 
 # -------------------- STORE PROFILE -------------------- #
-@pytest_asyncio.fixture
-async def existing_profile(db) -> tuple[str, dict[str, float]]:
-    track_id = "1"
-    emotional_profile = {
+# 1. Test that store_profile raises StorageServiceException if track_id already exists.
+# 2. Test that store_profile raises StorageServiceException if operational error occurs.
+# 3. Test that store_profile raises StorageServiceException if database error occurs.
+# 4. Test that store_profile stores profile in database.
+@pytest.fixture
+def mock_emotional_profile() -> dict[str, float]:
+    return {
         "joy": 0.1,
         "sadness": 0.1,
         "anger": 0.2,
@@ -92,6 +95,9 @@ async def existing_profile(db) -> tuple[str, dict[str, float]]:
         "spirituality": 0
     }
 
+
+@pytest_asyncio.fixture
+async def existing_profile(db, mock_emotional_profile) -> tuple[str, dict[str, float]]:
     insert_statement = f"""
         INSERT INTO Profile (
             track_id, 
@@ -113,14 +119,111 @@ async def existing_profile(db) -> tuple[str, dict[str, float]]:
         )
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
     """
-    await db.execute(insert_statement, (track_id, *emotional_profile.values()))
+
+    track_id = "1"
+
+    await db.execute(insert_statement, (track_id, *mock_emotional_profile.values()))
     await db.commit()
 
-    return track_id, emotional_profile
+    return track_id, mock_emotional_profile
+
+
+@pytest.mark.asyncio
+async def test_store_profile_track_id_already_exists(storage_service, existing_profile, mock_emotional_profile):
+    """Ensure StorageServiceException is raised on duplicate track ID."""
+
+    existing_track_id, existing_profile = existing_profile
+
+    # insert should fail due to primary key violation
+    with pytest.raises(StorageServiceException, match="Track ID '1' already exists."):
+        await storage_service.store_profile(track_id=existing_track_id, profile=mock_emotional_profile)
+
+
+@pytest.mark.asyncio
+async def test_store_profile_operational_error(storage_service, db, mock_emotional_profile):
+    """Test retrieving profile when a DB operational error occurs."""
+
+    mock_execute = AsyncMock()
+    mock_execute.side_effect = aiosqlite.OperationalError
+    db.execute = mock_execute
+
+    with pytest.raises(StorageServiceException, match="Database operation failed"):
+        await storage_service.store_profile(track_id="1", profile=mock_emotional_profile)
+
+
+@pytest.mark.asyncio
+async def test_store_profile_database_error(storage_service, db, mock_emotional_profile):
+    """Test retrieving profile when a DB operational error occurs."""
+
+    mock_execute = AsyncMock()
+    mock_execute.side_effect = aiosqlite.DatabaseError
+    db.execute = mock_execute
+
+    with pytest.raises(StorageServiceException, match="Unexpected database error"):
+        await storage_service.store_profile(track_id="1", profile=mock_emotional_profile)
+
+
+@pytest.mark.asyncio
+async def test_store_profile_adds_profile_to_db(storage_service, db, mock_emotional_profile):
+    """Test that store profile adds profile to db"""
+
+    track_id = "1"
+
+    await storage_service.store_profile(track_id=track_id, profile=mock_emotional_profile)
+
+    cursor = await db.execute(f"SELECT * FROM profile WHERE track_id = {track_id}")
+    row = await cursor.fetchone()
+    assert row == (track_id, *mock_emotional_profile.values())
 
 
 # -------------------- RETRIEVE PROFILE -------------------- #
+# 1. Test that retrieve_profile raises StorageServiceException if operational error occurs.
+# 2. Test that retrieve_profile raises StorageServiceException if database error occurs.
+# 3. Test that retrieve_profile returns None if track_id not found.
+# 4. Test that retrieve_profile returns expected profile.
+@pytest.mark.asyncio
+async def test_retrieve_profile_operational_error(storage_service, db):
+    """Test retrieving profile when a DB operational error occurs."""
 
+    mock_execute = AsyncMock()
+    mock_execute.side_effect = aiosqlite.OperationalError
+    db.execute = mock_execute
+
+    with pytest.raises(StorageServiceException, match="Database operation failed"):
+        await storage_service.retrieve_profile(track_id="1")
+
+
+@pytest.mark.asyncio
+async def test_retrieve_profile_database_error(storage_service, db):
+    """Test retrieving profile when a DB operational error occurs."""
+
+    mock_execute = AsyncMock()
+    mock_execute.side_effect = aiosqlite.DatabaseError
+    db.execute = mock_execute
+
+    with pytest.raises(StorageServiceException, match="Unexpected database error"):
+        await storage_service.retrieve_profile(track_id="1")
+
+
+@pytest.mark.asyncio
+async def test_retrieve_profile_does_not_exist(storage_service):
+    """Test retrieving profile for a track that doesn't exist."""
+
+    retrieved_profile = await storage_service.retrieve_profile("does_not_exist")
+
+    assert retrieved_profile is None, "Should return None for non-existent track"
+
+
+@pytest.mark.asyncio
+async def test_retrieve_profile_does_exist(storage_service, existing_profile):
+    """Test retrieving profile for a track that does exist."""
+
+    existing_track_id, existing_profile = existing_profile
+
+    retrieved_profile = await storage_service.retrieve_profile(existing_track_id)
+
+    assert retrieved_profile == existing_profile, "Should return stored profile for stored track"
+    
 
 # -------------------- STORE TAGS -------------------- #
 # 1. Test that store_tags raises StorageServiceException if track_id already exists.
@@ -191,50 +294,51 @@ async def test_store_tags_adds_tags_to_db(storage_service, db):
     row = await cursor.fetchone()
     assert row == (track_id, tags)
 
+
 # -------------------- RETRIEVE TAGS -------------------- #
 # 1. Test that retrieve_tags raises StorageServiceException if operational error occurs.
 # 2. Test that retrieve_tags raises StorageServiceException if database error occurs.
 # 3. Test that retrieve_tags returns None if track_id not found.
 # 4. Test that retrieve_tags returns expected tags.
-# @pytest.mark.asyncio
-# async def test_retrieve_tags_operational_error(storage_service, existing_track, db):
-#     """Test retrieving tags when a DB operational error occurs."""
-#
-#     mock_execute = AsyncMock()
-#     mock_execute.side_effect = aiosqlite.OperationalError
-#     db.execute = mock_execute
-#
-#     with pytest.raises(StorageServiceException, match="Database operation failed"):
-#         await storage_service.retrieve_tags(track_id="1")
-#
-#
-# @pytest.mark.asyncio
-# async def test_retrieve_tags_database_error(storage_service, existing_track, db):
-#     """Test retrieving tags when a DB operational error occurs."""
-#
-#     mock_execute = AsyncMock()
-#     mock_execute.side_effect = aiosqlite.DatabaseError
-#     db.execute = mock_execute
-#
-#     with pytest.raises(StorageServiceException, match="Unexpected database error"):
-#         await storage_service.retrieve_tags(track_id="1")
-#
-#
-# @pytest.mark.asyncio
-# async def test_retrieve_tags_does_not_exist(storage_service):
-#     """Test retrieving tags for a track that doesn't exist."""
-#
-#     retrieved_tags = await storage_service.retrieve_tags("does_not_exist")
-#
-#     assert retrieved_tags is None, "Should return None for non-existent track"
-#
-#
-# @pytest.mark.asyncio
-# async def test_retrieve_tags_does_exist(storage_service, existing_track):
-#     """Test retrieving tags for a track that does exist."""
-#
-#     existing_track_id, existing_tags = existing_track
-#
-#     retrieved_tags = await storage_service.retrieve_tags(existing_track_id)
-#
-#     assert retrieved_tags == existing_tags, "Should return stored tags for stored track"
+@pytest.mark.asyncio
+async def test_retrieve_tags_operational_error(storage_service, db):
+    """Test retrieving tags when a DB operational error occurs."""
+
+    mock_execute = AsyncMock()
+    mock_execute.side_effect = aiosqlite.OperationalError
+    db.execute = mock_execute
+
+    with pytest.raises(StorageServiceException, match="Database operation failed"):
+        await storage_service.retrieve_tags(track_id="1")
+
+
+@pytest.mark.asyncio
+async def test_retrieve_tags_database_error(storage_service, db):
+    """Test retrieving tags when a DB operational error occurs."""
+
+    mock_execute = AsyncMock()
+    mock_execute.side_effect = aiosqlite.DatabaseError
+    db.execute = mock_execute
+
+    with pytest.raises(StorageServiceException, match="Unexpected database error"):
+        await storage_service.retrieve_tags(track_id="1")
+
+
+@pytest.mark.asyncio
+async def test_retrieve_tags_does_not_exist(storage_service):
+    """Test retrieving tags for a track that doesn't exist."""
+
+    retrieved_tags = await storage_service.retrieve_tags("does_not_exist")
+
+    assert retrieved_tags is None, "Should return None for non-existent track"
+
+
+@pytest.mark.asyncio
+async def test_retrieve_tags_does_exist(storage_service, existing_tags):
+    """Test retrieving tags for a track that does exist."""
+
+    existing_track_id, existing_tags = existing_tags
+
+    retrieved_tags = await storage_service.retrieve_tags(existing_track_id)
+
+    assert retrieved_tags == existing_tags, "Should return stored tags for stored track"
