@@ -27,10 +27,10 @@ def storage_service(db) -> StorageService:
 
 
 # -------------------- INITIALISE DB -------------------- #
-# 1. Test that initialise_db creates a new table with expected columns.
+# 1. Test that initialise_db creates new tables with expected columns.
 @pytest.mark.asyncio
 async def test_initialise_db_creates_table():
-    """Test that initialise_db creates a new table with expected columns."""
+    """Test that initialise_db creates new tables with expected columns."""
 
     async with (aiosqlite.connect(DB_PATH) as db):
         await initialise_db(db)
