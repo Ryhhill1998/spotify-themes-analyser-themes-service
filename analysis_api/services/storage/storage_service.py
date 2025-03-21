@@ -2,7 +2,18 @@ import aiosqlite
         
 
 async def initialise_db(db: aiosqlite.Connection):
-    """Creates the required database tables if they don't exist."""
+    """
+    Creates the required database tables if they do not exist.
+
+    This function initializes the database by creating two tables:
+    - `Profile`: Stores emotional attributes for a track.
+    - `Tags`: Stores tags associated with a track.
+
+    Parameters
+    ----------
+    db : aiosqlite.Connection
+        The SQLite database connection.
+    """
 
     await db.executescript("""
         CREATE TABLE IF NOT EXISTS Profile (
@@ -34,15 +45,68 @@ async def initialise_db(db: aiosqlite.Connection):
 
 
 class StorageServiceException(Exception):
+    """
+    Custom exception for errors in the StorageService.
+
+    This exception is raised when database operations fail due to integrity, operational or unexpected database errors.
+    """
+
     def __init__(self, message: str):
         super().__init__(message)
 
 
 class StorageService:
+    """
+    Provides methods to store and retrieve track-related data from an SQLite database.
+
+    This service manages two types of data:
+    - `Profile`: Stores various emotional attributes associated with a track.
+    - `Tags`: Stores descriptive tags for a track.
+
+    Attributes
+    ----------
+    db : aiosqlite.Connection
+        The SQLite database connection used for executing queries.
+
+    Methods
+    -------
+    store_profile(track_id: str, profile: dict)
+        Stores a track's emotional profile in the database.
+    retrieve_profile(track_id: str) -> dict | None
+        Retrieves a track's emotional profile from the database.
+    store_tags(track_id: str, tags: str)
+        Stores tags associated with a track in the database.
+    retrieve_tags(track_id: str) -> str | None
+        Retrieves tags associated with a track from the database.
+    """
+
     def __init__(self, db: aiosqlite.Connection):
+        """
+        Attributes
+        ----------
+        db : aiosqlite.Connection
+            The SQLite database connection.
+        """
+
         self.db = db
 
-    async def store_profile(self, track_id: str, profile: dict):
+    async def store_profile(self, track_id: str, profile: dict[str, float]):
+        """
+        Stores a track's emotional profile in the database.
+
+        Parameters
+        ----------
+        track_id : str
+            The unique identifier for the track.
+        profile : dict
+            A dictionary containing emotional attributes as keys and their values as floats.
+
+        Raises
+        ------
+        StorageServiceException
+            If the track ID already exists or if a database error occurs.
+        """
+
         insert_statement = f"""
             INSERT INTO Profile (
                 track_id, 
@@ -78,6 +142,25 @@ class StorageService:
             raise StorageServiceException(f"Unexpected database error - {e}")
 
     async def retrieve_profile(self, track_id: str) -> dict | None:
+        """
+        Retrieves a track's emotional profile from the database.
+
+        Parameters
+        ----------
+        track_id : str
+            The unique identifier for the track.
+
+        Returns
+        -------
+        dict or None
+            A dictionary containing the track's emotional attributes if found, otherwise None.
+
+        Raises
+        ------
+        StorageServiceException
+            If a database error occurs.
+        """
+
         select_query = f"""
             SELECT * FROM Profile 
             WHERE track_id = ?
@@ -101,6 +184,25 @@ class StorageService:
             raise StorageServiceException(f"Unexpected database error - {e}")
 
     async def store_tags(self, track_id: str, tags: str):
+        """
+        Stores tags associated with a track in the database.
+
+        Parameters
+        ----------
+        track_id : str
+            The unique identifier for the track.
+        tags : str
+            The emotional tags for the track.
+
+            The emotional tags are original lyrics of the track with certain phrases wrapped in <span> tags, where the
+            class names correspond to the detected emotion.
+
+        Raises
+        ------
+        StorageServiceException
+            If the track ID already exists or if a database error occurs.
+        """
+
         insert_statement = f"""
             INSERT INTO Tags (track_id, tags)
             VALUES (?, ?);
@@ -119,6 +221,28 @@ class StorageService:
             raise StorageServiceException(f"Unexpected database error - {e}")
 
     async def retrieve_tags(self, track_id: str) -> str | None:
+        """
+        Retrieves tags associated with a track from the database.
+
+        Parameters
+        ----------
+        track_id : str
+            The unique identifier for the track.
+
+        Returns
+        -------
+        str or None
+            The emotional tags for the track if found, otherwise None.
+
+            The emotional tags are original lyrics of the track with certain phrases wrapped in <span> tags, where the
+            class names correspond to the detected emotion.
+
+        Raises
+        ------
+        StorageServiceException
+            If a database error occurs.
+        """
+
         select_query = f"""
             SELECT * FROM Tags 
             WHERE track_id = ?
