@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+
+import aiosqlite
 from fastapi import FastAPI
 from google import genai
 
@@ -26,7 +28,9 @@ async def lifespan(app: FastAPI):
     )
 
     # initialise database
-    await initialise_db(settings.db_path)
+    db = await aiosqlite.connect(settings.db_path)
+    await initialise_db(db)
+    await db.close()
 
     yield
 

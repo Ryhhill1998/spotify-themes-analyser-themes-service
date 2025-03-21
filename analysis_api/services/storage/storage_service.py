@@ -1,37 +1,36 @@
 import aiosqlite
         
 
-async def initialise_db(db_path: str):
+async def initialise_db(db: aiosqlite.Connection):
     """Creates the required database tables if they don't exist."""
 
-    async with aiosqlite.connect(db_path) as db:
-        await db.executescript("""
-            CREATE TABLE IF NOT EXISTS Profile (
-                track_id TEXT PRIMARY KEY,
-                joy REAL, 
-                sadness REAL, 
-                anger REAL, 
-                fear REAL, 
-                love REAL,
-                hope REAL, 
-                nostalgia REAL, 
-                loneliness REAL, 
-                confidence REAL,
-                despair REAL, 
-                excitement REAL, 
-                mystery REAL, 
-                defiance REAL,
-                gratitude REAL, 
-                spirituality REAL
-            );
+    await db.executescript("""
+        CREATE TABLE IF NOT EXISTS Profile (
+            track_id TEXT PRIMARY KEY,
+            joy REAL, 
+            sadness REAL, 
+            anger REAL, 
+            fear REAL, 
+            love REAL,
+            hope REAL, 
+            nostalgia REAL, 
+            loneliness REAL, 
+            confidence REAL,
+            despair REAL, 
+            excitement REAL, 
+            mystery REAL, 
+            defiance REAL,
+            gratitude REAL, 
+            spirituality REAL
+        );
 
-            CREATE TABLE IF NOT EXISTS Tags (
-                track_id TEXT PRIMARY KEY,
-                tags TEXT
-            );
-        """)
+        CREATE TABLE IF NOT EXISTS Tags (
+            track_id TEXT PRIMARY KEY,
+            tags TEXT
+        );
+    """)
 
-        await db.commit()
+    await db.commit()
 
 
 class StorageServiceException(Exception):
@@ -68,8 +67,15 @@ class StorageService:
 
         data_to_insert = (track_id, *profile.values())
 
-        await self.db.execute(insert_statement, data_to_insert)
-        await self.db.commit()
+        try:
+            await self.db.execute(insert_statement, data_to_insert)
+            await self.db.commit()
+        except aiosqlite.IntegrityError:
+            raise StorageServiceException(f"Track ID '{track_id}' already exists.")
+        except aiosqlite.OperationalError as e:
+            raise StorageServiceException(f"Database operation failed - {e}")
+        except aiosqlite.DatabaseError as e:
+            raise StorageServiceException(f"Unexpected database error - {e}")
 
     async def retrieve_profile(self, track_id: str) -> dict | None:
         select_query = f"""
@@ -77,7 +83,8 @@ class StorageService:
             WHERE track_id = ?
         """
 
-        async with self.db.execute(select_query, (track_id, )) as cursor:
+        try:
+            cursor = await self.db.execute(select_query, (track_id,))
             row = await cursor.fetchone()
 
             if row is None:
@@ -85,9 +92,13 @@ class StorageService:
 
             _, *emotions = row
             emotion_names = [description[0] for description in cursor.description][1:]
-            data = dict(zip(emotion_names, emotions))
+            profile = dict(zip(emotion_names, emotions))
 
-            return data
+            return profile
+        except aiosqlite.OperationalError as e:
+            raise StorageServiceException(f"Database operation failed - {e}")
+        except aiosqlite.DatabaseError as e:
+            raise StorageServiceException(f"Unexpected database error - {e}")
 
     async def store_tags(self, track_id: str, tags: str):
         insert_statement = f"""
@@ -97,8 +108,15 @@ class StorageService:
 
         data_to_insert = (track_id, tags)
 
-        await self.db.execute(insert_statement, data_to_insert)
-        await self.db.commit()
+        try:
+            await self.db.execute(insert_statement, data_to_insert)
+            await self.db.commit()
+        except aiosqlite.IntegrityError:
+            raise StorageServiceException(f"Track ID '{track_id}' already exists.")
+        except aiosqlite.OperationalError as e:
+            raise StorageServiceException(f"Database operation failed - {e}")
+        except aiosqlite.DatabaseError as e:
+            raise StorageServiceException(f"Unexpected database error - {e}")
 
     async def retrieve_tags(self, track_id: str) -> str | None:
         select_query = f"""
@@ -106,12 +124,13 @@ class StorageService:
             WHERE track_id = ?
         """
 
-        async with self.db.execute(select_query, (track_id, )) as cursor:
+        try:
+            cursor = await self.db.execute(select_query, (track_id,))
             row = await cursor.fetchone()
-
-            if row is None:
-                return None
-
-            _, tags = row
+            tags = row[1] if row else None
 
             return tags
+        except aiosqlite.OperationalError as e:
+            raise StorageServiceException(f"Database operation failed - {e}")
+        except aiosqlite.DatabaseError as e:
+            raise StorageServiceException(f"Unexpected database error - {e}")
