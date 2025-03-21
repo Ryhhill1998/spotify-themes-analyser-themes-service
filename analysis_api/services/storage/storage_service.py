@@ -13,6 +13,11 @@ async def initialise_db(db: aiosqlite.Connection):
     ----------
     db : aiosqlite.Connection
         The SQLite database connection.
+
+    Raises
+    ------
+    aiosqlite.Error
+        If an error occurs while creating the table.
     """
 
     await db.executescript("""
