@@ -221,7 +221,7 @@ async def test__get_emotional_tags_data_data_in_storage(
     data = await data_service._get_emotional_tags_data(track_id="1", lyrics="Lyrics for track 1", emotion="joy")
 
     assert data == mock_emotional_tags_data
-    mock_storage_service.retrieve_tags.assert_called_once_with("1")
+    mock_storage_service.retrieve_tags.assert_called_once_with(track_id="1", emotion="joy")
     mock_model_service.generate_response.assert_not_called()
 
 
@@ -246,9 +246,13 @@ async def test__get_emotional_tags_data_data_not_in_storage(
     data = await data_service._get_emotional_tags_data(track_id=track_id, lyrics=lyrics, emotion=emotion)
 
     assert data == mock_emotional_tags_data
-    mock_storage_service.retrieve_tags.assert_called_once_with(track_id)
+    mock_storage_service.retrieve_tags.assert_called_once_with(track_id=track_id, emotion=emotion)
     mock_model_service.generate_response.assert_called_once_with(f"\nEmotion to Tag: {emotion}\nLyrics: {lyrics}")
-    mock_storage_service.store_tags.assert_called_once_with(track_id=track_id, tags=mock_emotional_tags_data)
+    mock_storage_service.store_tags.assert_called_once_with(
+        track_id=track_id,
+        emotion=emotion,
+        tags=mock_emotional_tags_data
+    )
 
 
 # 3. Test that get_emotional_tags raises a DataServiceException if a ModelServiceException occurs.

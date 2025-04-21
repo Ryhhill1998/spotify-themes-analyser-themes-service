@@ -66,7 +66,7 @@ async def test_initialise_db_creates_table():
                 "gratitude",
                 "spirituality"
             }
-            and tags_column_names == {"track_id", "tags"}
+            and tags_column_names == {"track_id", "emotion", "tags"}
         )
 
 
@@ -231,30 +231,34 @@ async def test_retrieve_profile_does_exist(storage_service, existing_profile):
 # 3. Test that store_tags raises StorageServiceException if database error occurs.
 # 4. Test that store_tags stores tags in database.
 @pytest_asyncio.fixture
-async def existing_tags(db) -> tuple[str, str]:
+async def existing_tags(db) -> tuple[str, str, str]:
     track_id = "1"
+    emotion = "anger"
     tags = """<span class="anger">I’ll hurt you</span>"""
 
     insert_statement = f"""
-        INSERT INTO Tags (track_id, tags)
-        VALUES (?, ?);
+        INSERT INTO Tags (track_id, emotion, tags)
+        VALUES (?, ?, ?);
     """
 
-    await db.execute(insert_statement, (track_id, tags))
+    await db.execute(insert_statement, (track_id, emotion, tags))
     await db.commit()
 
-    return track_id, tags
+    return track_id, emotion, tags
 
 
 @pytest.mark.asyncio
-async def test_store_tags_track_id_already_exists(storage_service, existing_tags):
+async def test_store_tags_track_id_and_emotion_already_exist(storage_service, existing_tags):
     """Ensure StorageServiceException is raised on duplicate track ID."""
 
-    existing_track_id, existing_tags = existing_tags
+    existing_track_id, existing_emotion, _ = existing_tags
 
     # insert should fail due to primary key violation
-    with pytest.raises(StorageServiceException, match="Track ID '1' already exists."):
-        await storage_service.store_tags(track_id=existing_track_id, tags="Random tags")
+    with pytest.raises(
+            StorageServiceException,
+            match=f"Entry already exists with track ID '{existing_track_id}' and emotion '{existing_emotion}'."
+    ):
+        await storage_service.store_tags(track_id=existing_track_id, emotion=existing_emotion, tags="Random tags")
 
 
 @pytest.mark.asyncio
@@ -266,7 +270,11 @@ async def test_store_tags_operational_error(storage_service, db):
     db.execute = mock_execute
 
     with pytest.raises(StorageServiceException, match="Database operation failed"):
-        await storage_service.store_tags(track_id="1", tags="""<span class="anger">I’ll hurt you</span>""")
+        await storage_service.store_tags(
+            track_id="1",
+            emotion="joy",
+            tags="""<span class="anger">I’ll hurt you</span>"""
+        )
 
 
 @pytest.mark.asyncio
@@ -278,7 +286,7 @@ async def test_store_tags_database_error(storage_service, db):
     db.execute = mock_execute
 
     with pytest.raises(StorageServiceException, match="Unexpected database error"):
-        await storage_service.store_tags(track_id="1", tags="Random tags")
+        await storage_service.store_tags(track_id="1", emotion="joy", tags="Random tags")
 
 
 @pytest.mark.asyncio
@@ -286,13 +294,14 @@ async def test_store_tags_adds_tags_to_db(storage_service, db):
     """Test that store tags adds tags to db"""
 
     track_id = "1"
+    emotion = "anger"
     tags = """<span class="anger">I’ll hurt you</span>"""
 
-    await storage_service.store_tags(track_id=track_id, tags=tags)
+    await storage_service.store_tags(track_id=track_id, emotion=emotion, tags=tags)
 
-    cursor = await db.execute(f"SELECT * FROM Tags WHERE track_id = {track_id}")
+    cursor = await db.execute(f"SELECT * FROM Tags WHERE track_id = {track_id};")
     row = await cursor.fetchone()
-    assert row == (track_id, tags)
+    assert row == (track_id, emotion, tags)
 
 
 # -------------------- RETRIEVE TAGS -------------------- #
@@ -309,7 +318,7 @@ async def test_retrieve_tags_operational_error(storage_service, db):
     db.execute = mock_execute
 
     with pytest.raises(StorageServiceException, match="Database operation failed"):
-        await storage_service.retrieve_tags(track_id="1")
+        await storage_service.retrieve_tags(track_id="1", emotion="joy")
 
 
 @pytest.mark.asyncio
@@ -321,14 +330,14 @@ async def test_retrieve_tags_database_error(storage_service, db):
     db.execute = mock_execute
 
     with pytest.raises(StorageServiceException, match="Unexpected database error"):
-        await storage_service.retrieve_tags(track_id="1")
+        await storage_service.retrieve_tags(track_id="1", emotion="joy")
 
 
 @pytest.mark.asyncio
 async def test_retrieve_tags_does_not_exist(storage_service):
     """Test retrieving tags for a track that doesn't exist."""
 
-    retrieved_tags = await storage_service.retrieve_tags("does_not_exist")
+    retrieved_tags = await storage_service.retrieve_tags(track_id="does_not_exist", emotion="joy")
 
     assert retrieved_tags is None, "Should return None for non-existent track"
 
@@ -337,8 +346,8 @@ async def test_retrieve_tags_does_not_exist(storage_service):
 async def test_retrieve_tags_does_exist(storage_service, existing_tags):
     """Test retrieving tags for a track that does exist."""
 
-    existing_track_id, existing_tags = existing_tags
+    existing_track_id, existing_emotion, tags = existing_tags
 
-    retrieved_tags = await storage_service.retrieve_tags(existing_track_id)
+    retrieved_tags = await storage_service.retrieve_tags(track_id=existing_track_id, emotion=existing_emotion)
 
-    assert retrieved_tags == existing_tags, "Should return stored tags for stored track"
+    assert retrieved_tags == tags, "Should return stored tags for stored track"

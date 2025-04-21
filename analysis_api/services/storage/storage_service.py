@@ -264,7 +264,8 @@ class StorageService:
         try:
             cursor = await self.db.execute(select_query, (track_id, emotion))
             row = await cursor.fetchone()
-            tags = row[1] if row else None
+            print(f"{row = }")
+            tags = row[-1] if row else None
 
             return tags
         except aiosqlite.OperationalError as e:
