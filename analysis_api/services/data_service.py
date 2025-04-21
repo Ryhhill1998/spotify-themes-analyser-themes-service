@@ -1,5 +1,6 @@
 import asyncio
 import json
+from loguru import logger
 
 import pydantic
 
@@ -169,7 +170,7 @@ class DataService:
             If there is an issue generating a response from the model.
         """
 
-        emotional_tags_data = await self.storage_service.retrieve_tags(track_id)
+        emotional_tags_data = await self.storage_service.retrieve_tags(track_id=track_id, emotion=emotion)
 
         if emotional_tags_data is not None:
             return emotional_tags_data
@@ -177,7 +178,7 @@ class DataService:
         model_input = f"\nEmotion to Tag: {emotion}\nLyrics: {lyrics}"
         data = await asyncio.to_thread(self.model_service.generate_response, model_input)
         emotional_tags_data = data.replace("\\", "")
-        await self.storage_service.store_tags(track_id=track_id, tags=emotional_tags_data)
+        await self.storage_service.store_tags(track_id=track_id, emotion=emotion, tags=emotional_tags_data)
 
         return emotional_tags_data
 

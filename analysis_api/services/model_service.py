@@ -1,5 +1,6 @@
 import json
 from json import JSONDecodeError
+from loguru import logger
 
 from google import genai
 from google.genai import types, errors
